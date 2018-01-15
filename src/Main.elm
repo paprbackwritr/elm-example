@@ -4,6 +4,8 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Http
+import Json.Decode as Decode exposing (..)
+import Json.Encode as Encode exposing (..)
 
 
 main : Program Never Model Msg
@@ -25,23 +27,30 @@ main =
 
 
 type alias Model =
-    { quote : String
+    { username : String
+    , password : String
+    , token : String
+    , errorMsg : String
+    , quote : String
     }
 
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model "", fetchRandomQuoteCmd )
+    ( Model "" "" "" "" "", fetchRandomQuoteCmd )
 
 
 
 {-
    UPDATE
    * API routes
-   * GET
+   * GET and POST
+   * Encode request body
+   * Decode responses
    * Messages
    * Update case
 -}
+-- API request URLs
 
 
 api : String
@@ -52,6 +61,23 @@ api =
 randomQuoteUrl : String
 randomQuoteUrl =
     api ++ "api/random-quote"
+
+
+registerUrl : String
+registerUrl =
+    api ++ "users"
+
+
+
+-- Encode user to construct POST request body (for register and log in)
+
+
+userEncoder : Model -> Encode.Value
+userEncoder model =
+    Encode.object
+        [ ( "username", Encode.string model.username )
+        , ( "password", Encode.string model.password )
+        ]
 
 
 
@@ -76,6 +102,22 @@ fetchRandomQuoteCompleted model result =
 
         Err _ ->
             ( model, Cmd.none )
+
+
+
+-- POST register/login request
+-- authUser takes model as an argument and a string as an argument and returns a request that succeeds with a string
+
+
+authUser : Model -> String -> Http.Request String
+authUser model apiUrl =
+    let
+        body =
+            model
+                |> userEncoder
+                |> Http.jsonBody
+    in
+    Http.post apiUrl body tokenDecoder
 
 
 type Msg
