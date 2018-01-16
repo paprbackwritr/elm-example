@@ -120,6 +120,21 @@ authUser model apiUrl =
     Http.post apiUrl body tokenDecoder
 
 
+authUserCmd : Model -> String -> Cmd Msg
+authUserCmd model apiUrl =
+    Http.send GetTokenCompleted (authUser model apiUrl)
+
+
+getTokenCompleted : Model -> Result Http.Error String -> ( Model, Cmd Msg )
+getTokenCompleted model result =
+    case result of
+        Ok newToken ->
+            ( { model | token = newToken, password = "", errorMsg = "" } |> Debug.log "Got new token", Cmd.none )
+
+        Err error ->
+            ( { model | errorMsg = toString error }, Cmd.none )
+
+
 type Msg
     = GetQuote
     | FetchRandomQuoteCompleted (Result Http.Error String)
