@@ -81,6 +81,15 @@ userEncoder model =
 
 
 
+-- Decode POST response to get access token
+
+
+tokenDecoder : Decoder String
+tokenDecoder =
+    Decode.field "access_token" Decode.string
+
+
+
 -- Get a random quote
 
 
@@ -138,6 +147,10 @@ getTokenCompleted model result =
 type Msg
     = GetQuote
     | FetchRandomQuoteCompleted (Result Http.Error String)
+    | SetUsername String
+    | SetPassword String
+    | ClickRegisterUser
+    | GetTokenCompleted (Result Http.Error String)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -149,21 +162,96 @@ update msg model =
         FetchRandomQuoteCompleted result ->
             fetchRandomQuoteCompleted model result
 
+        SetUsername username ->
+            ( { model | username = username }, Cmd.none )
+
+        SetPassword password ->
+            ( { model | password = password }, Cmd.none )
+
+        ClickRegisterUser ->
+            ( model, authUserCmd model registerUrl )
+
+        GetTokenCompleted result ->
+            getTokenCompleted model result
+
 
 
 {-
    View
+   * Hide sections of view depending on authentication state of the model
+   * Get a quote
+   * Register
 -}
 
 
 view : Model -> Html Msg
 view model =
+    let
+        -- Is the user logged in?
+        loggedIn : Bool
+        loggedIn =
+            if String.length model.token > 0 then
+                True
+            else
+                False
+
+        -- If the user is logged in, show greeting, else show login/register form
+        authBoxView =
+            let
+                -- If there's an error on auth, show the error alert
+                showError : String
+                showError =
+                    if String.isEmpty model.errorMsg then
+                        "hidden"
+                    else
+                        ""
+
+                -- Greet logged in user by username
+                greeting : String
+                greeting =
+                    "Hello, " ++ model.username ++ "!"
+            in
+            if loggedIn then
+                div [ id "greeting" ]
+                    [ h3 [ class "text-center" ] [ text greeting ]
+                    , p [ class "text-center" ] [ text "You have access!" ]
+                    ]
+            else
+                div [ id "form" ]
+                    [ h2 [ class "text-center" ] [ text "Log in or Register" ]
+                    , p [ class "text-center" ] [ text "If you already have an account, please Log In. Otherwise, enter your desired username and password and Register." ]
+                    , div [ class showError ]
+                        [ div [ class "alert alert-danger" ] [ text model.errorMsg ]
+                        ]
+                    , div [ class "form-group row" ]
+                        [ div [ class "col-md-offset-2 col-md-8" ]
+                            [ label [ for "username" ] [ text "Username:" ]
+                            , input [ id "username", type_ "text", class "form-control", Html.Attributes.value model.username, onInput SetUsername ] []
+                            ]
+                        ]
+                    , div [ class "form-group row" ]
+                        [ div [ class "col-md-offset-2 col-md-8" ]
+                            [ label [ for "password" ] [ text "Password:" ]
+                            , input [ id "password", type_ "password", class "form-control", Html.Attributes.value model.password, onInput SetPassword ] []
+                            ]
+                        ]
+                    , div [ class "text-center" ]
+                        [ button [ class "btn btn-link", onClick ClickRegisterUser ] [ text "Register" ]
+                        ]
+                    ]
+    in
     div [ class "container" ]
-        [ h2 [ class "text-center" ] [ text "Random Quotes by Random People" ]
+        [ h2 [ class "text-center" ] [ text "Chuck Norris Quotes" ]
         , p [ class "text-center" ]
             [ button [ class "btn btn-success", onClick GetQuote ] [ text "Grab a quote!" ]
             ]
+
+        -- Blockquote with quote
         , blockquote []
             [ p [] [ text model.quote ]
+            ]
+        , div [ class "jumbotron text-left" ]
+            [ -- Login/Register form or user greeting
+              authBoxView
             ]
         ]
